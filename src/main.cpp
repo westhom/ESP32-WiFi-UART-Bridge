@@ -9,8 +9,10 @@ AsyncServer server(TCP_LISTEN_PORT);
 bool serialClientConnected = false;
 AsyncClient* activeClient;
 
-char next[2] = {0, '\0'};
 char pinStatus[2] = {0, '\0'};
+
+#define RX_BUFFER_SIZE 256
+char rxBuffer[RX_BUFFER_SIZE+1] = {0};
 
 void onSerialClient(void *arg, AsyncClient *client) {
   if( serialClientConnected ){
@@ -66,6 +68,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
 
   // initial 3d printer serial port
+  Serial2.setRxBufferSize(RX_BUFFER_SIZE);
   Serial2.begin(SERIAL_BAUD_RATE, SERIAL_8N1, SERIAL_RX_GPIO_PIN, SERIAL_TX_GPIO_PIN);
 
   // connect to wifi network
@@ -107,12 +110,15 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
 
-  while(Serial2.available()){
-    next[0] = (char) Serial2.read();
+  int avail;
+
+  while(avail = Serial2.available()){
+    Serial2.read(rxBuffer, avail);
+    rxBuffer[avail] = '\0';
 
     if( serialClientConnected ){
-      // Serial.write(next);
-      activeClient->write(next);
+      // Serial.write(rxBuffer);
+      activeClient->write(rxBuffer);
       activeClient->send();
     }
   }
